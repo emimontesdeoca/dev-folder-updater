@@ -54,6 +54,7 @@ namespace DevFolderUpdate
                 watcher.Created += new FileSystemEventHandler(OnChanged);
                 watcher.Created += new FileSystemEventHandler(OnCreated);
                 watcher.Deleted += new FileSystemEventHandler(OnDeleted);
+                watcher.Renamed += new RenamedEventHandler(OnRenamed);
 
 
                 watcher.EnableRaisingEvents = true;
@@ -119,6 +120,29 @@ namespace DevFolderUpdate
                 }
             }
         }
+
+        private static void OnRenamed(object source, RenamedEventArgs e) {
+            Log(LogTypes.CHANGES, e.Name);
+
+            string path = Path.Combine(WEBSITE_PATH, e.Name);
+            string oldPath = Path.Combine(WEBSITE_PATH, e.OldName);
+
+            if (IsFile(oldPath))
+            {
+                if (File.Exists(oldPath))
+                {
+                    File.Move(oldPath,path);
+                }
+            }
+            else
+            {
+                if (Directory.Exists(oldPath))
+                {
+                    Directory.Move(oldPath,path);
+                }
+            }
+        }
+
 
 
         #region UTILS
