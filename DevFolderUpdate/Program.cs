@@ -40,7 +40,6 @@ namespace DevFolderUpdate
         [PermissionSet(SecurityAction.Demand, Name = "FullTrust")]
         public static void RunWatcher()
         {
-
             // Create a new FileSystemWatcher and set its properties.
             using (FileSystemWatcher watcher = new FileSystemWatcher())
             {
@@ -53,6 +52,10 @@ namespace DevFolderUpdate
                 watcher.Filter = "*.*";
 
                 watcher.Created += new FileSystemEventHandler(OnChanged);
+                watcher.Created += new FileSystemEventHandler(OnCreated);
+                watcher.Deleted += new FileSystemEventHandler(OnDeleted);
+
+
                 watcher.EnableRaisingEvents = true;
 
                 // Wait for the user to quit the program.
@@ -63,6 +66,23 @@ namespace DevFolderUpdate
 
         // Define the event handlers.
         private static void OnChanged(object source, FileSystemEventArgs e)
+        {
+            Log(LogTypes.CHANGES, e.Name);
+
+          
+            string path = Path.Combine(WEBSITE_PATH, e.Name);
+
+            if (IsFile(e.FullPath))
+            {
+                FileCopy(e.Name, e.FullPath, path);
+            }
+            else
+            {
+                DirectoryCopy(e.FullPath, path, true);
+            }
+        }
+
+        private static void OnCreated(object source, FileSystemEventArgs e)
         {
             Log(LogTypes.CHANGES, e.Name);
 
@@ -78,9 +98,32 @@ namespace DevFolderUpdate
             }
         }
 
+        private static void OnDeleted(object source, FileSystemEventArgs e)
+        {
+            Log(LogTypes.CHANGES, e.Name);
+
+            string path = Path.Combine(WEBSITE_PATH, e.Name);
+
+            if (IsFile(path))
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                }
+            }
+            else
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, true);
+                }
+            }
+        }
+
+
         #region UTILS
 
-        private static void Log(LogTypes types, string message)
+        private static void Log(LogTypes types,  string message)
         {
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"[{DateTime.Now}] - ");
