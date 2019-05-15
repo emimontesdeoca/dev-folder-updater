@@ -12,7 +12,6 @@ namespace DevFolderUpdate
     {
         public static string DEV_PATH;
         public static string WEBSITE_PATH;
-        public static string MODULE_NAME;
 
         public enum LogTypes
         {
@@ -25,8 +24,8 @@ namespace DevFolderUpdate
         {
             ShowHeader();
 
-            DEV_PATH = @"C:\Desarrollo\Dev\Hotelequia.Backend\src\Hotelequia.Backend.Activities\bin" ?? AskForString("Enter developer folder path");
-            WEBSITE_PATH = @"C:\Websites\hotelequia-backend-dev_2019050715_2\bin" ?? AskForString("Enter website folder path");
+            DEV_PATH = AskForString("Enter developer folder path");
+            WEBSITE_PATH = AskForString("Enter website folder path");
             //MODULE_NAME = AskForString("Enter module name");
 
             if (String.IsNullOrEmpty(DEV_PATH) || string.IsNullOrEmpty(WEBSITE_PATH))
