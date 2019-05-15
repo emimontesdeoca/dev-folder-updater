@@ -12,22 +12,26 @@ namespace DevFolderUpdate
     {
         public static string DEV_PATH;
         public static string WEBSITE_PATH;
+        public static string MODULE_NAME;
 
         public enum LogTypes
         {
-            ERROR,
-            SUCCESS,
-            CHANGES
+            Error,
+            Copied,
+            Changes
         }
 
         static void Main(string[] args)
         {
-            DEV_PATH = AskForString("Enter developer folder path");
-            WEBSITE_PATH = AskForString("Enter website folder path");
+            ShowHeader();
+
+            DEV_PATH = @"C:\Desarrollo\Dev\Hotelequia.Backend\src\Hotelequia.Backend.Activities\bin" ?? AskForString("Enter developer folder path");
+            WEBSITE_PATH = @"C:\Websites\hotelequia-backend-dev_2019050715_2\bin" ?? AskForString("Enter website folder path");
+            //MODULE_NAME = AskForString("Enter module name");
 
             if (String.IsNullOrEmpty(DEV_PATH) || string.IsNullOrEmpty(WEBSITE_PATH))
             {
-                Log(LogTypes.ERROR, "Error in values");
+                Log(LogTypes.Error, "Error in values");
                 Console.WriteLine("Press 'q' to quit the sample.");
                 Console.ReadLine();
             }
@@ -47,15 +51,14 @@ namespace DevFolderUpdate
 
                 /* Watch for changes in LastAccess and LastWrite times, and
                    the renaming of files or directories. */
-                watcher.NotifyFilter = NotifyFilters.LastAccess | NotifyFilters.LastWrite | NotifyFilters.FileName | NotifyFilters.DirectoryName;
+                watcher.NotifyFilter = NotifyFilters.LastWrite;
 
-                watcher.Filter = "*.*";
+                watcher.Filter = $"*.*";
 
-                watcher.Created += new FileSystemEventHandler(OnChanged);
-                watcher.Created += new FileSystemEventHandler(OnCreated);
-                watcher.Deleted += new FileSystemEventHandler(OnDeleted);
-                watcher.Renamed += new RenamedEventHandler(OnRenamed);
-
+                watcher.Changed += new FileSystemEventHandler(OnChanged);
+                //watcher.Created += new FileSystemEventHandler(OnChanged);
+                //watcher.Deleted += new FileSystemEventHandler(OnDeleted);
+                //watcher.Renamed += new RenamedEventHandler(OnRenamed);
 
                 watcher.EnableRaisingEvents = true;
 
@@ -68,61 +71,83 @@ namespace DevFolderUpdate
         // Define the event handlers.
         private static void OnChanged(object source, FileSystemEventArgs e)
         {
-            Log(LogTypes.CHANGES, e.Name);
-
-          
             string path = Path.Combine(WEBSITE_PATH, e.Name);
 
-            if (IsFile(e.FullPath))
+            try
             {
-                FileCopy(e.Name, e.FullPath, path);
+                if (IsFile(path))
+                {
+                    if (File.Exists(path))
+                    {
+                        var newCurrentFile = new FileInfo(e.FullPath);
+                        var currentFile = new FileInfo(path);
+
+                        if (newCurrentFile.LastWriteTimeUtc > currentFile.LastWriteTimeUtc)
+                        {
+                            Log(LogTypes.Changes, e.Name);
+                            FileCopy(e.Name, e.FullPath, path);
+                        }
+                    }
+                }
+                else
+                {
+                    if (Directory.Exists(path))
+                    {
+                        var newCurrentDirectory = new DirectoryInfo(e.FullPath);
+                        var currentDirectory = new DirectoryInfo(path);
+
+                        if (newCurrentDirectory.LastWriteTimeUtc > currentDirectory.LastWriteTimeUtc)
+                        {
+                            Log(LogTypes.Changes, e.Name);
+                            DirectoryCopy(e.FullPath, path, true);
+                        }
+                    }
+                }
             }
-            else
+            catch (Exception)
             {
-                DirectoryCopy(e.FullPath, path, true);
+
             }
         }
 
         private static void OnCreated(object source, FileSystemEventArgs e)
         {
-            Log(LogTypes.CHANGES, e.Name);
+            Log(e.ChangeType, e.Name);
 
-            string path = Path.Combine(WEBSITE_PATH, e.Name);
+            //string path = Path.Combine(WEBSITE_PATH, e.Name);
 
-            if (IsFile(e.FullPath))
-            {
-                FileCopy(e.Name, e.FullPath, path);
-            }
-            else
-            {
-                DirectoryCopy(e.FullPath, path, true);
-            }
+            //if (IsFile(e.FullPath))
+            //{
+            //    FileCopy(e.Name, e.FullPath, path);
+            //}
+            //else
+            //{
+            //    DirectoryCopy(e.FullPath, path, true);
+            //}
         }
 
         private static void OnDeleted(object source, FileSystemEventArgs e)
         {
-            Log(LogTypes.CHANGES, e.Name);
+            Log(LogTypes.Changes, e.Name);
 
             string path = Path.Combine(WEBSITE_PATH, e.Name);
 
-            if (IsFile(path))
+            if (File.Exists(path) || Directory.Exists(path))
             {
-                if (File.Exists(path))
+                if (IsFile(path))
                 {
                     File.Delete(path);
                 }
-            }
-            else
-            {
-                if (Directory.Exists(path))
+                else
                 {
                     Directory.Delete(path, true);
                 }
             }
         }
 
-        private static void OnRenamed(object source, RenamedEventArgs e) {
-            Log(LogTypes.CHANGES, e.Name);
+        private static void OnRenamed(object source, RenamedEventArgs e)
+        {
+            Log(LogTypes.Changes, e.Name);
 
             string path = Path.Combine(WEBSITE_PATH, e.Name);
             string oldPath = Path.Combine(WEBSITE_PATH, e.OldName);
@@ -131,42 +156,47 @@ namespace DevFolderUpdate
             {
                 if (File.Exists(oldPath))
                 {
-                    File.Move(oldPath,path);
+                    File.Move(oldPath, path);
                 }
             }
             else
             {
                 if (Directory.Exists(oldPath))
                 {
-                    Directory.Move(oldPath,path);
+                    Directory.Move(oldPath, path);
                 }
             }
         }
 
-
-
         #region UTILS
 
-        private static void Log(LogTypes types,  string message)
+
+        private static void Log(LogTypes types, string message)
         {
             Console.ForegroundColor = ConsoleColor.White;
             Console.Write($"[{DateTime.Now}] - ");
 
             switch (types)
             {
-                case LogTypes.ERROR:
+                case LogTypes.Error:
                     Console.ForegroundColor = ConsoleColor.Red;
                     break;
-                case LogTypes.SUCCESS:
+                case LogTypes.Copied:
                     Console.ForegroundColor = ConsoleColor.Green;
                     break;
-                case LogTypes.CHANGES:
+                case LogTypes.Changes:
                     Console.ForegroundColor = ConsoleColor.Yellow;
                     break;
                 default:
                     break;
             }
             Console.Write($"[{types.ToString()}] - {message} \n");
+        }
+
+        private static void Log(WatcherChangeTypes type, string message)
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.Write($"[{DateTime.Now}] - [{type.ToString()}] - {message} \n");
         }
 
         private static string AskForString(string message)
@@ -188,14 +218,14 @@ namespace DevFolderUpdate
         {
             try
             {
-                Log(LogTypes.CHANGES, filename);
-                File.Copy(sourceFile, destFile,true);
-                Log(LogTypes.SUCCESS, filename);
+                //Log(LogTypes.CHANGES, filename);
+                File.Copy(sourceFile, destFile, true);
+                Log(LogTypes.Copied, filename);
 
             }
             catch (Exception e)
             {
-                Log(LogTypes.ERROR, filename);
+                Log(LogTypes.Error, filename);
             }
         }
 
@@ -248,7 +278,21 @@ namespace DevFolderUpdate
                 return true;
         }
 
-
+        private static void ShowHeader()
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            Console.WriteLine(@"______    _     _             _   _           _       _            ");
+            Console.WriteLine(@"|  ___|  | |   | |           | | | |         | |     | |           ");
+            Console.WriteLine(@"| |_ ___ | | __| | ___ _ __  | | | |_ __   __| | __ _| |_ ___ _ __ ");
+            Console.WriteLine(@"|  _/ _ \| |/ _` |/ _ \ '__| | | | | '_ \ / _` |/ _` | __/ _ \ '__|");
+            Console.WriteLine(@"| || (_) | | (_| |  __/ |    | |_| | |_) | (_| | (_| | ||  __/ |   ");
+            Console.WriteLine(@"\_| \___/|_|\__,_|\___|_|     \___/| .__/ \__,_|\__,_|\__\___|_|   ");
+            Console.WriteLine(@"                                   | |                             ");
+            Console.WriteLine(@"                                   |_|                             ");
+            Console.WriteLine();
+            Console.WriteLine("Source code: https://github.com/emimontesdeoca/dev-folder-updater");
+            Console.WriteLine();
+        }
         #endregion
 
     }
